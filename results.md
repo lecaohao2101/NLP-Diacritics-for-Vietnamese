@@ -329,3 +329,61 @@ Chỉ ghi số đo thật từ output của notebook, không ghi số ước lư
 - Số liệu chính thức (bảng thống nhất, test 10k câu): Từ điển
   77,4/2,6/74,6; Bigram 91,9/30,8/91,3; PhoBERT 83,4/6,7/81,8;
   Tự build 92,5/30,8/92,4. Mục tiêu 95% chưa đạt; SOTA ~97–98%.
+
+## Review code + sửa lỗi (17/11/2026)
+
+Review toàn bộ code trong repo (3 notebook + 2 script) và sửa các điểm
+sau. **Mọi số liệu trong báo cáo đo ngày 16/11, trước các sửa đổi này**
+— chạy lại code đã sửa có thể cho số lệch nhẹ (xem ghi chú từng mục).
+
+Notebook 1 (dữ liệu + baseline):
+- Metric từ đa nghĩa chuyển sang định nghĩa train-only (amb_set tính
+  trên train, giống Notebook 2/3) thay vì tính trên toàn bộ pairs
+  (kể cả test). Số in ra ở Cell 6/8 giờ khớp bảng thống nhất
+  (74,6% / 91,3% thay cho 74,7% / 91,2% cũ).
+- Cell 3 thêm cảnh báo: số 45,5% chỉ là demo trên 12 câu mẫu.
+- Cell 7 sửa comment: CSV train/val/test không đọc được từ notebook
+  khác (mỗi notebook có /kaggle/working riêng); Notebook 2/3 tái tạo
+  tập dữ liệu bằng cùng code + seed 42.
+
+Notebook 2 (PhoBERT):
+- Cell 1 thêm assert tổng số từ = 2.387.449 (dừng ngay nếu dữ liệu
+  lệch khỏi Notebook 1, thay vì chỉ in ra).
+- Cell 4 đánh giá val mỗi epoch và giữ checkpoint tốt nhất theo eval
+  loss (eval_strategy="epoch", load_best_model_at_end=True); trước
+  đây val không được dùng và model epoch cuối được lấy mù quáng.
+  warmup_ratio đổi thành warmup_steps=750 (transformers 5.20.2 không
+  có warmup_ratio). Số 83,4% trong báo cáo đo bằng model epoch cuối
+  (trước sửa đổi) — chạy lại có thể lệch nhẹ.
+
+Notebook 3 (tự build):
+- Cell 1 sửa tiêu đề comment (trước đây ghi nhầm "Notebook 2 —
+  Fine-tune PhoBERT" do copy) + thêm assert tổng số từ.
+- Cell 2 thêm hàm skeleton()/compatible_ids() để tra cứu mẫu dấu
+  tương thích với một từ.
+- Cell 3 thêm torch.manual_seed(42) (+ cuda): trước đây train không
+  tái tạo được (khởi tạo trọng số, dropout, thứ tự batch đều ngẫu
+  nhiên). Sửa comment MAX_LEN (câu dài nhất 40 từ, không phải 60).
+- Cell 5 + Cell 9 dùng masking mẫu tương thích khi dự đoán (như
+  PhoBERT), thay cho argmax trần + fallback về từ không dấu. Masking
+  chỉ có thể làm số tăng lên, không giảm — số 92,5% trong báo cáo đo
+  bằng argmax trần.
+- Cell 5 bỏ đoạn tính lại amb_set (dùng chung Cell 2); Cell 6 bỏ số
+  hard-code 239189 (đếm thật); Cell 8 tính số PhoBERT từ file dự
+  đoán nếu có, không thì dùng số hard-code kèm cảnh báo rõ ràng;
+  Cell 7 ghi chú về token </s> và cách phá tie (nguyên nhân chênh
+  0,2pp so với Notebook 1).
+
+Script:
+- build_pdf.py + render_slides.py chạy được từ repo: tìm file .md ở
+  ./ hoặc reports/, tự tạo comparison_chart.png bằng matplotlib khi
+  file PNG gốc không có trong repo. Sửa docstring (Noto Sans, không
+  phải DejaVu), thêm cảnh báo khi thiếu ảnh.
+
+Chưa sửa (cần chạy lại trên Kaggle, ngoài phạm vi đợt này):
+- Notebook 3 trên GitHub vẫn không có output trong file .ipynb (0/9
+  cell) — cần chạy lại notebook rồi tải lại file.
+- Val accuracy 91,1% thấp hơn test 92,5% (1,4pp) — chưa rõ nguyên
+  nhân đầy đủ; có thể do val loại từ -100 còn test tính cả, và
+  fallback về từ không dấu ở eval cũ có thể đúng tình cờ với từ
+  không dấu. Đáng kiểm tra khi chạy lại.

@@ -25,9 +25,45 @@ TABLE_HEAD_BG = (14, 124, 123)
 FONT_DIR = Path("/usr/share/fonts/truetype/dejavu")
 
 
+_font_cache = {}
 def font(size, bold=False):
-    name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-    return ImageFont.truetype(str(FONT_DIR / name), size)
+    key = (size, bold)
+    if key not in _font_cache:
+        name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
+        _font_cache[key] = ImageFont.truetype(str(FONT_DIR / name), size)
+    return _font_cache[key]
+
+
+def ensure_chart(path):
+    """Tao bieu do so sanh 4 he neu file chua co (du lieu tu Bang 4.1).
+
+    File comparison_chart.png goc khong nam trong repo (file nhi phan),
+    nen script tu tao lai bang matplotlib khi can.
+    """
+    if path.exists():
+        return path
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    systems = ["Từ điển", "Bigram", "PhoBERT", "Tự build"]
+    word = [77.4, 91.9, 83.4, 92.5]
+    sent = [2.6, 30.8, 6.7, 30.8]
+    amb = [74.6, 91.3, 81.8, 92.4]
+    x = range(len(systems))
+    plt.figure(figsize=(8, 4.5))
+    plt.bar([i - 0.25 for i in x], word, 0.25, label="Word")
+    plt.bar([i for i in x], sent, 0.25, label="Sentence")
+    plt.bar([i + 0.25 for i in x], amb, 0.25, label="Từ đa nghĩa")
+    plt.xticks(list(x), systems)
+    plt.ylabel("Accuracy (%)")
+    plt.ylim(0, 100)
+    plt.title("So sánh 4 hệ khôi phục dấu (test 10k câu)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path, dpi=150)
+    plt.close()
+    print(f"Da tao bieu do {path} (file goc khong co trong repo)")
+    return path
 
 
 def wrap(draw, text, fnt, max_w):
@@ -106,7 +142,7 @@ def slide11():
     gx, gy, gw, gh = 1490, 250, 960, 780
     card(d, [gx, gy, gx + gw, gy + gh])
     d.text((gx + 50, gy + 40), "Biểu đồ so sánh", font=font(46, True), fill=TEAL)
-    chart = Image.open(HERE / "comparison_chart.png")
+    chart = Image.open(ensure_chart(HERE / "comparison_chart.png"))
     chart = chart.resize((860, int(860 * chart.size[1] / chart.size[0])))
     img.paste(chart, (gx + 50, gy + 140))
 

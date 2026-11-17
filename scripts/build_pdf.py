@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Build bao-cao-khoi-phuc-dau-tieng-viet.pdf tu file .md cung thu muc.
+"""Build bao-cao-khoi-phuc-dau-tieng-viet.pdf tu file .md.
 
-Dung fpdf2 + font DejaVu Sans (co tieng Viet). Chay:
-    ~/workspace/.venv-nlp/bin/python build_pdf.py
+Dung fpdf2 + font Noto Sans (co tieng Viet). Chay tu repo:
+    ~/workspace/.venv-nlp/bin/python scripts/build_pdf.py
+File .md tim o ./ (bo cuc phang) hoac reports/ (bo cuc repo);
+PDF ghi canh file .md. Bieu do comparison_chart.png neu chua co
+se duoc tao bang matplotlib tu so lieu Bang 4.1 (file PNG goc
+khong nam trong repo).
 """
 import re
 import sys
@@ -12,9 +16,44 @@ from fpdf import FPDF
 from fpdf.fonts import FontFace
 
 HERE = Path(__file__).parent
-MD_FILE = HERE / "bao-cao-khoi-phuc-dau-tieng-viet.md"
-PDF_FILE = HERE / "bao-cao-khoi-phuc-dau-tieng-viet.pdf"
+_MD_CANDIDATES = [
+    HERE / "bao-cao-khoi-phuc-dau-tieng-viet.md",                 # bo cuc phang
+    HERE.parent / "reports" / "bao-cao-khoi-phuc-dau-tieng-viet.md",  # bo cuc repo
+]
+MD_FILE = next((p for p in _MD_CANDIDATES if p.exists()), None)
+if MD_FILE is None:
+    raise SystemExit("Khong tim thay bao-cao-khoi-phuc-dau-tieng-viet.md "
+                     "(da thu ./ va reports/)")
+PDF_FILE = MD_FILE.with_suffix(".pdf")
 FONT_DIR = Path("/usr/share/fonts/truetype/noto")
+
+
+def ensure_chart(path):
+    """Tao bieu do so sanh 4 he neu file chua co (du lieu tu Bang 4.1)."""
+    if path.exists():
+        return path
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    systems = ["Từ điển", "Bigram", "PhoBERT", "Tự build"]
+    word = [77.4, 91.9, 83.4, 92.5]
+    sent = [2.6, 30.8, 6.7, 30.8]
+    amb = [74.6, 91.3, 81.8, 92.4]
+    x = range(len(systems))
+    plt.figure(figsize=(8, 4.5))
+    plt.bar([i - 0.25 for i in x], word, 0.25, label="Word")
+    plt.bar([i for i in x], sent, 0.25, label="Sentence")
+    plt.bar([i + 0.25 for i in x], amb, 0.25, label="Từ đa nghĩa")
+    plt.xticks(list(x), systems)
+    plt.ylabel("Accuracy (%)")
+    plt.ylim(0, 100)
+    plt.title("So sánh 4 hệ khôi phục dấu (test 10k câu)")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path, dpi=150)
+    plt.close()
+    print(f"Da tao bieu do {path} (file goc khong co trong repo)")
+    return path
 
 
 class ReportPDF(FPDF):
@@ -59,6 +98,11 @@ def parse_markdown(text):
             i += 1
         elif line.startswith("!["):
             m = re.match(r"!\[([^\]]*)\]\(([^)]+)\)", line)
+            if m is None:
+                print(f"CANH BAO: dong anh khong dung dinh dang, bo qua: {line}",
+                      file=sys.stderr)
+                i += 1
+                continue
             blocks.append(("image", (m.group(1), m.group(2))))
             i += 1
         elif line.startswith("|"):
@@ -177,7 +221,13 @@ def build():
             pdf.ln(2)
         elif kind == "image":
             caption, path = content
-            img = HERE / path
+            # Anh tim canh file .md truoc, roi canh script; bieu do so sanh
+            # neu chua co thi tao ra (xem ensure_chart).
+            img = MD_FILE.parent / path
+            if not img.exists():
+                img = HERE / path
+            if path == "comparison_chart.png" and not img.exists():
+                img = ensure_chart(MD_FILE.parent / path)
             if img.exists():
                 pdf.ln(2)
                 # image() tu sang trang neu khong du cho va tu day con
@@ -188,6 +238,9 @@ def build():
                 pdf.set_text_color(100, 100, 100)
                 pdf.multi_cell(0, 5, caption, align="C")
                 pdf.ln(2)
+            else:
+                print(f"CANH BAO: khong tim thay anh {path}, bo qua khoi PDF",
+                      file=sys.stderr)
         elif kind == "table":
             pdf.set_font("Noto", "", 10)
             pdf.set_text_color(30, 30, 30)

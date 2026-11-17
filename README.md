@@ -67,6 +67,11 @@ link mới.
 
 ## Lưu ý
 
+- Ngày 17/11 code đã qua một vòng review và sửa lỗi (seed cho train,
+  assert khớp dữ liệu, masking mẫu tương thích khi dự đoán, PhoBERT
+  chọn checkpoint tốt nhất theo val — chi tiết trong `results.md`).
+  Số liệu trong báo cáo đo ngày 16/11, trước các sửa đổi này; chạy
+  lại code đã sửa có thể cho số lệch nhẹ.
 - File PDF của báo cáo và file PowerPoint 12 trang không nằm trong repo
   này (GitHub push qua công cụ chỉ nhận file text UTF-8); bản PDF và
   slide nằm cùng thư mục làm việc của đề án.

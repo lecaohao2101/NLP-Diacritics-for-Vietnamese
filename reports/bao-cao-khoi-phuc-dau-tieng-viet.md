@@ -223,7 +223,12 @@ Số của từ điển và bigram trong Bảng 4.1 là số **tái tạo ở ch
 notebook dữ liệu: từ điển 77,4% / 2,6% / 74,7%; bigram 91,9% / 31,0% /
 91,2% (mẫu số từ đa nghĩa 209.279, tính trên toàn bộ corpus). Chênh lệch
 tối đa 0,2 điểm phần trăm, do định nghĩa tập đa nghĩa và tập ứng viên
-khác nhau — không ảnh hưởng tới thứ hạng các hệ.
+khác nhau — không ảnh hưởng tới thứ hạng các hệ. Ngày 17/11 notebook dữ
+liệu đã sửa sang định nghĩa train-only (xem `results.md`) nên chạy lại
+sẽ cho thẳng số của Bảng 4.1; số gốc 74,7% / 91,2% chỉ còn giá trị lịch
+sử. Tương tự, code đánh giá của hệ tự build đã thêm masking mẫu tương
+thích (17/11) nên chạy lại có thể cho số cao hơn 92,5% một chút — số
+trong bảng này đo bằng argmax trần ngày 16/11.
 
 ---
 
