@@ -58,6 +58,14 @@ trong code bằng tiếng Việt:
 Số kiểm chứng khi chạy lại: 1.501 bài viết, 100.000 câu, 2.387.449 từ,
 5.461 từ đa nghĩa (train), 2.326 nhãn mẫu dấu.
 
+Thứ tự chạy: Notebook 1 → 2 → 3, mỗi lần một notebook (Kaggle chỉ cho
+1 phiên GPU tương tác). Notebook 1 chạy CPU cũng được; Notebook 2 và 3
+cần GPU T4 x2 + Internet ON. Tổng thời gian khoảng 1 tiếng (PhoBERT
+~40 phút, tự build ~15 phút). Để bảng so sánh ở Notebook 3 dùng toàn
+số mới, tải file `phobert_predictions.csv` từ Output của Notebook 2
+rồi upload vào Notebook 3 (hoặc đưa vào Kaggle Dataset) trước khi chạy
+Cell 8 — không có file thì bảng vẫn chạy nhưng hàng PhoBERT là số cũ.
+
 ## Demo
 
 Demo Gradio chạy trên checkpoint tốt nhất của hệ tự build (Cell 9 của

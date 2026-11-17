@@ -383,7 +383,30 @@ Script:
 Chưa sửa (cần chạy lại trên Kaggle, ngoài phạm vi đợt này):
 - Notebook 3 trên GitHub vẫn không có output trong file .ipynb (0/9
   cell) — cần chạy lại notebook rồi tải lại file.
-- Val accuracy 91,1% thấp hơn test 92,5% (1,4pp) — chưa rõ nguyên
-  nhân đầy đủ; có thể do val loại từ -100 còn test tính cả, và
-  fallback về từ không dấu ở eval cũ có thể đúng tình cờ với từ
-  không dấu. Đáng kiểm tra khi chạy lại.
+
+## Review code đợt 2 (17/11/2026, tối)
+
+- Notebook 3, Cell 4: val_word_acc đo **word accuracy thật** trên val
+  (khôi phục từng câu có masking, so từng từ với gold — cùng cách đo
+  với test ở Cell 5), thay cho accuracy trên nhãn mẫu (loại từ -100).
+  Đây là nguyên nhân nghi ngờ của khoảng chênh val 91,1% so với test
+  92,5% ở lần chạy 16/11; đo cùng cách khi chạy lại sẽ rõ. Checkpoint
+  tốt nhất giờ cũng chọn theo metric thật này. Mỗi epoch chậm thêm
+  ~30 giây (đo từng câu trên 10k câu val). Đã kiểm chứng logic bằng
+  model giả: masking bỏ qua top-1 không tương thích, từ không mã hóa
+  được / không có mẫu tương thích đều bị tính là lỗi (không bị loại
+  khỏi mẫu số).
+- Notebook 3, Cell 3: hàm khôi phục dùng chung restore_with_model()
+  (+ restore_sentence) cho val (Cell 4), test (Cell 5) và demo
+  (Cell 9) — trước đây 3 chỗ viết riêng, dễ lệch nhau. DiacriticDataset
+  dùng chung encode_sentence; bỏ val_ds/val_dl không còn dùng.
+- Notebook 3, Cell 8: tìm phobert_predictions.csv ở cả /kaggle/working
+  và /kaggle/input (Kaggle Dataset); cảnh báo rõ ràng khi không có
+  file (bảng đang trộn số PhoBERT cũ với số mới).
+- Notebook 2, Cell 4: chọn tên tham số đánh giá theo bản transformers
+  (eval_strategy ở 5.x, evaluation_strategy ở 4.x); chỉ bật
+  load_best_model_at_end khi có đánh giá val (không thì Trainer báo
+  lỗi). Cell 3 dùng Random(0) cục bộ thay vì seed lại module random.
+- Báo cáo §3.5 ghi chú rõ số val 91,1% đo theo cách cũ; README thêm
+  checklist chạy lại trên Kaggle (thứ tự, GPU, thời gian, file
+  PhoBERT cần chuyển sang Notebook 3).

@@ -150,8 +150,10 @@ Một Transformer encoder nhỏ, train từ đầu ở **mức từ** (không d�
 - Kiến trúc: embedding 256 + positional encoding, encoder 4 lớp, 8 heads,
   dropout 0,1; tổng cộng **9.510.934 tham số**.
 - Huấn luyện: Adam, lr 1e-3, 12 epoch, giữ checkpoint tốt nhất theo word
-  accuracy trên validation. Loss giảm từ 1,09 xuống 0,26; word accuracy
-  trên validation tăng từ 83,5% lên **91,1%**.
+  accuracy trên validation. Loss giảm từ 1,09 xuống 0,26; accuracy trên
+  validation tăng từ 83,5% lên **91,1%**. (Ở lần chạy 16/11, số validation
+  này đo trên nhãn mẫu, loại từ không mã hóa được; code từ 17/11 đo word
+  accuracy thật trên validation, cùng cách đo với test.)
 
 ### 3.6. Metric
 
