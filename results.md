@@ -1,8 +1,8 @@
 # Kết quả đo — Khôi phục dấu tiếng Việt
 
 Nhật ký số đo theo từng chặng, chạy trên Kaggle notebook
-"Vietnamese Diacritic Restoration - Week 1 Starter"
-(https://www.kaggle.com/code/lcaoho/vietnamese-diacritic-restoration-week-1-starter).
+"VN Diacritic Restoration - Data and Baselines"
+(https://www.kaggle.com/code/lcaoho/vn-diacritic-restoration-data-and-baselines).
 Chỉ ghi số đo thật từ output của notebook, không ghi số ước lượng.
 
 ## Chặng 1 — Corpus 20k câu, baseline từ điển (16/11/2026, Version 2)
@@ -447,3 +447,100 @@ trả đúng kết quả argmax; beta 1 lật được lỗi thật trong báo c
 ("tới dạng" -> "tôi đang"); câu rỗng và từ chưa thấy trong train đều
 xử lý đúng (giữ nguyên từ). Tổng thời gian chạy lại mới: ~1 tiếng
 45 phút.
+
+## Chạy lại sau tinh chỉnh 18/11 + fine-tune văn nói (tối 21/11/2026 — SỐ CHÍNH THỨC MỚI)
+
+User tự chạy các cell trên Kaggle (NB1 không chạy lại — code không đổi,
+dùng lại Version 5). Tất cả số dưới đây đo trên cùng tập test 10.000 câu
+(239.189 từ) như trước.
+
+### Notebook 2 — PhoBERT 6 epoch (chạy lại, ~70 phút)
+
+- Train 6 epoch, warmup 1.500 bước. Kết quả test 10k:
+  - Word accuracy: 211.611/239.189 = 88,5% (3 epoch: 83,4%)
+  - Sentence accuracy: 1.556/10.000 = 15,6% (3 epoch: 6,7%)
+  - Accuracy trên từ đa nghĩa: 181.559/207.644 = 87,4% (3 epoch: 81,8%)
+  - Accuracy trên từ chưa thấy trong train: 5.003/5.754 = 86,9%
+    (3 epoch: 85,4%)
+- Vẫn thua bigram (91,9%) dù train gấp đôi — xác nhận giả thuyết thiếu
+  huấn luyện ở Mục 5.4 của báo cáo là đúng một phần: thêm epoch giúp
+  nhiều (+5,1 điểm) nhưng chưa đủ để vượt bigram.
+- Lưu ý khi lưu Version 4: user bấm Save Version và Kaggle chạy Save &
+  Run All (chạy lại toàn bộ ~70 phút) thay vì Quick Save; V4 xếp hàng
+  sau phiên GPU của NB3. Số chính thức lấy từ lần chạy tương tác này,
+  không đợi V4.
+- `phobert_predictions.csv` đã lưu vào /kaggle/working và upload thành
+  Kaggle Dataset `phobert_predictions` để đưa sang NB3.
+
+### Notebook 3 — tự build 20 epoch + Viterbi (chạy lại, ~35 phút)
+
+- Train 20 epoch, ~81 giây/epoch; loss cuối 0,2041; val word accuracy
+  (đo thật, cùng cách đo với test) tốt nhất **93,2%** ở epoch 19–20
+  (12 epoch ngày 16/11: val 91,1% đo trên nhãn mẫu, không so trực tiếp
+  được).
+- Argmax trên test 10k:
+  - Word accuracy: 222.999/239.189 = 93,2%
+  - Sentence accuracy: 3.421/10.000 = 34,2%
+  - Accuracy trên từ đa nghĩa: 193.202/207.644 = 93,0%
+- Chọn beta Viterbi trên val: beta 0,5 -> 94,4%, beta 1,0 -> 94,8%,
+  beta 2,0 -> 95,0%. Viterbi (beta 2,0) trên test 10k:
+  - Word accuracy: 227.293/239.189 = **95,0%**
+  - Sentence accuracy: 4.632/10.000 = **46,3%**
+  - Accuracy trên từ đa nghĩa: 197.036/207.644 = **94,9%**
+- **MỤC TIÊU 95% ĐÃ ĐẠT** (nhờ Viterbi, không phải nhờ thêm epoch một
+  mình). File dự đoán chính `selfbuilt_test_predictions.csv` đã ghi đè
+  bằng dự đoán Viterbi theo logic đã định (argmax giữ riêng ở
+  `selfbuilt_argmax_test_predictions.csv`).
+- Bigram tái tạo ở Cell 7: 91,9%/30,8%/91,3% — khớp chặng 6.
+- Lỗi Cell 8 gặp khi chạy: lookup `phobert_predictions.csv` dùng glob
+  1 cấp `/kaggle/input/*/phobert_predictions.csv` nên không thấy file
+  (dataset mount sâu 3 cấp
+  `/kaggle/input/dataset/lcaoho/phobert-predictions/...`); user đã copy
+  file vào /kaggle/working để chạy Cell 8. Code đã sửa sang glob đệ quy
+  trong lần push này. Phân tích lỗi chi tiết (17.918 từ sai, 55,1% sai
+  thanh điệu...) vẫn là của bản 12 epoch 16/11 — bản Viterbi chỉ sai
+  11.896 từ, chưa phân tích lại chi tiết.
+
+### Fine-tune văn nói — phụ đề phim (Cell 10–14, tối 21/11/2026)
+
+- Lý do: demo câu văn nói "noi len em oi" -> "nói lên em ối" (sai) —
+  model train trên Wikipedia không hiểu văn nói. User yêu cầu kịp
+  train thêm trước buổi thuyết trình 22/11.
+- Dữ liệu: `vietgpt/open_subtitles_envi` (phụ đề phim, 3.505.276 câu),
+  lấy mẫu 200k, làm sạch (NFC, 3–40 từ, bỏ URL/HTML/số nhiều/không
+  dấu/trùng) -> 150.000 câu train + 3.000 val + 3.000 test; trộn thêm
+  50.000 câu Wikipedia để chống catastrophic forgetting.
+- Cell 11: fine-tune 3 epoch từ `selfbuilt_best.pt`, lr 1e-4, batch 64;
+  loss 0,4732 -> 0,3902 -> 0,3581; val phụ đề 87,5% -> 88,6% ->
+  **89,2%**. Lưu riêng `selfbuilt_ft_colloquial.pt` (không ghi đè
+  checkpoint gốc).
+- Cell 12: mở rộng bigram + forms sang phụ đề (bigram 880.565 cặp,
+  unigram 100.875 từ; forms['oi'] đủ 8 dạng). Kết quả:
+  - Model fine-tune, test Wikipedia: argmax 93,1/33,1/92,8; Viterbi
+    95,0/45,6/94,8 — giữ nguyên miền văn viết, không quên.
+  - Model fine-tune, test phụ đề 3k: argmax 88,3/43,9/89,1; Viterbi
+    **96,2/76,8/95,9**.
+  - Model cũ (20 epoch) trên test phụ đề: argmax 73,8/12,9/74,1;
+    Viterbi 94,1/67,5/93,7 (Viterbi cũ đã dùng bigram mở rộng).
+  - Câu văn nói: "noi len em oi" -> "nói lên em ơi" ĐÚNG cả 2 cách giải
+    mã; "hom nay troi dep qua" -> "hôm nay trời đẹp quả" VẪN SAI cả 2
+    (phải là "quá") — ví dụ hạn chế hiện tại cho slide/báo cáo.
+- Cell 13: demo Gradio mới dùng model fine-tune + Viterbi beta 2,0.
+- Cell 14: fine-tune thêm 2 epoch (val còn tăng) + đánh giá nhanh —
+  đã gửi code, user chưa báo kết quả (tính đến 21:45 tối 21/11).
+- Hạn chế: vocab giữ nguyên bản Wikipedia — từ lóng/chưa thấy thành
+  <unk>; mở rộng vocab cần train lại embedding, để sau.
+
+### Cập nhật khác trong lần push này (21/11/2026)
+
+- Cell 9 demo Gradio chuyển sang Viterbi beta 2,0 (mặc định cho kết quả
+  đúng nhất: 95,0% thay vì 93,2% của argmax); mô tả sửa 92,5% -> 95,0%.
+- Script mới `scripts/restore_document.py`: khôi phục dấu cho cả file
+  tài liệu (.txt/.docx/.pdf) ở tầng ứng dụng — tách câu, khôi phục từng
+  câu (tối đa 64 từ), ghép lại; mặc định Viterbi beta 2,0, thêm
+  `--no-viterbi` để dùng argmax. Cần checkpoint `.pt` +
+  `diacritic_assets.json` (cell export ở Phần 9.0 của docs giải thích).
+  Chưa chạy end-to-end với checkpoint thật.
+- BẢNG SO SÁNH THỐNG NHẤT MỚI (test 10k câu): Từ điển 77,4/2,6/74,6;
+  Bigram 91,9/30,8/91,3; PhoBERT 88,5/15,6/87,4; Tự build (argmax)
+  93,2/34,2/93,0; **Tự build + Viterbi 95,0/46,3/94,9**.

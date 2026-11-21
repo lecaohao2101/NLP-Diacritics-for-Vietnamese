@@ -29,16 +29,17 @@ FONT_DIR = Path("/usr/share/fonts/truetype/noto")
 
 
 def ensure_chart(path):
-    """Tao bieu do so sanh 4 he neu file chua co (du lieu tu Bang 4.1)."""
+    """Tao bieu do so sanh 5 he neu file chua co (du lieu tu Bang 4.1)."""
     if path.exists():
         return path
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    systems = ["Từ điển", "Bigram", "PhoBERT", "Tự build"]
-    word = [77.4, 91.9, 83.4, 92.5]
-    sent = [2.6, 30.8, 6.7, 30.8]
-    amb = [74.6, 91.3, 81.8, 92.4]
+    systems = ["Từ điển", "Bigram", "PhoBERT", "Tự build",
+               "Tự build + Viterbi"]
+    word = [77.4, 91.9, 88.5, 93.2, 95.0]
+    sent = [2.6, 30.8, 15.6, 34.2, 46.3]
+    amb = [74.6, 91.3, 87.4, 93.0, 94.9]
     x = range(len(systems))
     plt.figure(figsize=(8, 4.5))
     plt.bar([i - 0.25 for i in x], word, 0.25, label="Word")

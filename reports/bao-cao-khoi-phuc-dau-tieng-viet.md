@@ -34,10 +34,10 @@ Kế hoạch ban đầu đặt mục tiêu tham khảo là word accuracy ≥ 95%
 PhoBERT fine-tune sẽ là hệ mạnh nhất. Kết quả thực tế đo được trên tập test
 10.000 câu:
 
-- Hệ tốt nhất là **Transformer tự build: word accuracy 92,5%** — chưa đạt
-  mục tiêu 95% nhưng vượt cả bigram (91,9%) và PhoBERT (83,4%).
+- Hệ tốt nhất là **Transformer tự build + giải mã Viterbi: word accuracy
+  95,0%** — đã đạt mục tiêu 95%, vượt bigram (91,9%) và PhoBERT (88,5%).
 - Kết quả này **ngược với kỳ vọng ban đầu**: PhoBERT không những không mạnh
-  nhất mà còn thua bigram tới 8,5 điểm phần trăm. Báo cáo phân tích nguyên
+  nhất mà còn thua bigram 3,4 điểm phần trăm. Báo cáo phân tích nguyên
   nhân ở Mục 5.4.
 
 Đề án xây dựng và so sánh **4 hệ thống trên cùng một tập test, cùng một
@@ -133,8 +133,10 @@ dạng có xác suất bigram cao nhất.
 
 Mô hình `vinai/phobert-base` (đã được VinAI pretrain sẵn trên ~20 GB văn
 bản tiếng Việt) được fine-tune cho bài toán phân loại token: mỗi từ không
-dấu là một token, nhãn là mẫu dấu của nó (Mục 3.1). Cấu hình: 3 epoch,
-learning rate 2e-5, batch 32, fp16, chạy trên Kaggle GPU T4 x2.
+dấu là một token, nhãn là mẫu dấu của nó (Mục 3.1). Cấu hình: 6 epoch,
+learning rate 2e-5, batch 32, fp16, warmup 1.500 bước, chạy trên Kaggle
+GPU T4 x2. (Bản chạy 3 epoch ngày 16/11 đạt 83,4%; chạy lại 6 epoch tối
+21/11 lên 88,5% — xem Mục 4.3 và 4.5.)
 
 Hai lưu ý kỹ thuật: tokenizer của PhoBERT là tokenizer chậm (không hỗ trợ
 `word_ids()`), nên các từ được tokenize riêng từng từ (kèm cache) và nhãn
@@ -149,11 +151,15 @@ Một Transformer encoder nhỏ, train từ đầu ở **mức từ** (không d�
 - Từ vựng: 22.413 từ không dấu xuất hiện ≥ 2 lần trong train.
 - Kiến trúc: embedding 256 + positional encoding, encoder 4 lớp, 8 heads,
   dropout 0,1; tổng cộng **9.510.934 tham số**.
-- Huấn luyện: Adam, lr 1e-3, 12 epoch, giữ checkpoint tốt nhất theo word
-  accuracy trên validation. Loss giảm từ 1,09 xuống 0,26; accuracy trên
-  validation tăng từ 83,5% lên **91,1%**. (Ở lần chạy 16/11, số validation
-  này đo trên nhãn mẫu, loại từ không mã hóa được; code từ 17/11 đo word
-  accuracy thật trên validation, cùng cách đo với test.)
+- Huấn luyện: Adam, lr 1e-3, 20 epoch, giữ checkpoint tốt nhất theo word
+  accuracy trên validation. Loss giảm từ 1,09 xuống 0,20; accuracy trên
+  validation (đo word accuracy thật, cùng cách đo với test) tốt nhất
+  93,2% ở epoch 19–20. (Bản chạy 12 epoch ngày 16/11: loss xuống 0,26,
+  val 91,1% đo trên nhãn mẫu.)
+- Giải mã: Viterbi + bigram thay cho argmax từng từ độc lập — chọn chuỗi
+  có tổng điểm model (log-softmax) và điểm bigram (làm mịn alpha 0,1)
+  cao nhất cho cả câu. Hệ số beta thử {0,5; 1,0; 2,0} trên validation
+  (94,4% / 94,8% / 95,0%), chọn beta 2,0.
 
 ### 3.6. Metric
 
@@ -167,7 +173,7 @@ Cả 4 hệ thống được đo trên **cùng tập test 10.000 câu** (239.189
 | Accuracy trên từ đa nghĩa | Accuracy riêng cho nhóm từ có ≥ 2 dạng có dấu (tập đa nghĩa tính trên train, 207.644 từ trên test) |
 
 Riêng PhoBERT còn được đo thêm accuracy trên từ chưa thấy trong train
-(5.754 từ trên test): **85,4%** — cao hơn cả word accuracy tổng thể của nó,
+(5.754 từ trên test): **86,9%** — cao hơn cả word accuracy tổng thể của nó,
 cho thấy PhoBERT chuyển giao tốt sang từ mới nhờ pretrain.
 
 ---
@@ -180,27 +186,29 @@ cho thấy PhoBERT chuyển giao tốt sang từ mới nhờ pretrain.
 |---|---:|---:|---:|
 | Từ điển | 77,4% (185.248/239.189) | 2,6% (261/10.000) | 74,6% (154.991/207.644) |
 | Bigram | 91,9% (219.857/239.189) | 30,8% (3.079/10.000) | 91,3% (189.600/207.644) |
-| PhoBERT | 83,4% (199.500/239.189) | 6,7% (671/10.000) | 81,8% (169.922/207.644) |
-| **Tự build** | **92,5% (221.271/239.189)** | **30,8% (3.075/10.000)** | **92,4% (191.774/207.644)** |
+| PhoBERT | 88,5% (211.611/239.189) | 15,6% (1.556/10.000) | 87,4% (181.559/207.644) |
+| Tự build (argmax) | 93,2% (222.999/239.189) | 34,2% (3.421/10.000) | 93,0% (193.202/207.644) |
+| **Tự build + Viterbi** | **95,0% (227.293/239.189)** | **46,3% (4.632/10.000)** | **94,9% (197.036/207.644)** |
 
 ![So sánh 4 hệ thống trên tập test 10.000 câu](comparison_chart.png)
 
 ### 4.2. Nhận xét
 
-- **Transformer tự build là hệ tốt nhất**, vượt bigram ở word accuracy
-  (+0,6 điểm phần trăm) và từ đa nghĩa (+1,1 điểm), hòa ở sentence
-  accuracy (30,8% — chỉ chênh 4 câu). Đây là kết quả bất ngờ so với kỳ
-  vọng ban đầu (PhoBERT được kỳ vọng mạnh nhất).
+- **Transformer tự build + Viterbi là hệ tốt nhất**, vượt bigram ở word
+  accuracy (+3,1 điểm phần trăm), sentence accuracy (+15,5 điểm) và từ
+  đa nghĩa (+3,6 điểm). Viterbi cộng +1,8 điểm word và +12,1 điểm
+  sentence so với argmax (93,2% / 34,2%) — chênh lệch ở sentence lớn
+  hơn hẳn vì Viterbi sửa đúng những lỗi từ đơn lẻ làm hỏng cả câu.
 - **Bigram là baseline rất mạnh**: chỉ dùng thống kê 2-gram mà đã đạt
-  91,9%, vượt xa PhoBERT. Văn bản Wikipedia có nhiều cụm từ lặp lại, và
-  Viterbi với tập ứng viên chính xác khai thác tốt đặc điểm này.
-- **PhoBERT đạt 83,4%**, thấp hơn cả bigram. Phân tích nguyên nhân ở
-  Mục 5.4.
-- Sentence accuracy của mọi hệ đều thấp (tốt nhất 30,8%) vì chỉ cần sai
-  một từ là cả câu sai; với trung bình ~24 từ/câu và word accuracy 92,5%,
+  91,9%, vượt cả PhoBERT 6 epoch. Văn bản Wikipedia có nhiều cụm từ lặp
+  lại, và Viterbi với tập ứng viên chính xác khai thác tốt đặc điểm này.
+- **PhoBERT đạt 88,5% sau 6 epoch**, vẫn thấp hơn bigram. Phân tích
+  nguyên nhân ở Mục 5.4.
+- Sentence accuracy của mọi hệ đều thấp (tốt nhất 46,3%) vì chỉ cần sai
+  một từ là cả câu sai; với trung bình ~24 từ/câu và word accuracy 95,0%,
   xác suất một câu hoàn toàn đúng theo lý thuyết đã thấp.
-- Mục tiêu tham khảo 95% word accuracy **chưa đạt được** (tốt nhất
-  92,5%). Các công trình công bố trên bài toán này đạt khoảng 97–98%
+- Mục tiêu tham khảo 95% word accuracy **đã đạt được** (95,0% nhờ
+  Viterbi). Các công trình công bố trên bài toán này đạt khoảng 97–98%
   (Mục 7) với corpus lớn hơn nhiều và mô hình lớn hơn; đó là hướng phát
   triển, không phải kết quả của đề án này.
 
@@ -212,11 +220,12 @@ cho thấy PhoBERT chuyển giao tốt sang từ mới nhờ pretrain.
 | MODIFIABLE học từ dữ liệu (3 epoch, 42.525 nhãn) | 77,8% | 2,9% | 75,3% | Học tập mang dấu từ dữ liệu kéo chữ nước ngoài vào, nổ số nhãn |
 | Mẫu dấu, MODIFIABLE cố định, giới hạn ≥ 5 lần (3 epoch, 2.326 nhãn) | 83,4% | 6,7% | 81,8% | Công thức chính thức của hệ PhoBERT |
 
-Đáng chú ý, candidate-index (85,2%) còn cao hơn công thức mẫu dấu (83,4%),
-vì đầu phân loại 21 lớp của nó học đủ trong 3 epoch, trong khi đầu 2.326
-lớp của công thức mẫu dấu còn thiếu huấn luyện (loss cuối epoch 3 vẫn
-1,95). Đây là bằng chứng cho giả thuyết ở Mục 5.4 rằng PhoBERT bị thiếu
-huấn luyện chứ không phải kiến trúc yếu hơn.
+Đáng chú ý, candidate-index (85,2%) còn cao hơn công thức mẫu dấu ở bản
+3 epoch (83,4%), vì đầu phân loại 21 lớp của nó học đủ trong 3 epoch,
+trong khi đầu 2.326 lớp của công thức mẫu dấu còn thiếu huấn luyện (loss
+cuối epoch 3 vẫn 1,95). Chạy lại 6 epoch tối 21/11 (Mục 4.5) đưa mẫu dấu
+lên 88,5%, vượt candidate-index — xác nhận giả thuyết thiếu huấn luyện
+ở Mục 5.4.
 
 ### 4.4. Ghi chú về tính nhất quán của số liệu
 
@@ -229,12 +238,35 @@ khác nhau — không ảnh hưởng tới thứ hạng các hệ. Ngày 17/11 n
 liệu đã sửa sang định nghĩa train-only (xem `results.md`) nên chạy lại
 sẽ cho thẳng số của Bảng 4.1; số gốc 74,7% / 91,2% chỉ còn giá trị lịch
 sử. Tương tự, code đánh giá của hệ tự build đã thêm masking mẫu tương
-thích (17/11) nên chạy lại có thể cho số cao hơn 92,5% một chút — số
-trong bảng này đo bằng argmax trần ngày 16/11. Ngày 18/11 code tinh
-chỉnh thêm trước khi chạy lại (xem `results.md`): PhoBERT 6 epoch thay
-cho 3, tự build 20 epoch thay cho 12, và giải mã Viterbi + bigram cho
-hệ tự build (hệ số beta chọn trên val, chỉ giữ nếu val cải thiện) —
-chạy lại sẽ cho số mới, số 16/11 trong bảng này giữ làm baseline.
+thích (17/11). Ngày 18/11 code tinh chỉnh thêm trước khi chạy lại (xem
+`results.md`): PhoBERT 6 epoch thay cho 3, tự build 20 epoch thay cho
+12, và giải mã Viterbi + bigram cho hệ tự build (hệ số beta chọn trên
+val, chỉ giữ nếu val cải thiện) — đã chạy lại tối 21/11 (Mục 4.5); số
+trong Bảng 4.1 là số mới sau chạy lại, số 16/11 giữ làm baseline trong
+`results.md`.
+
+### 4.5. Chạy lại sau tinh chỉnh + fine-tune văn nói (tối 21/11)
+
+Ngày 18/11 đề án quyết định tinh chỉnh cả 3 chỗ trước khi chạy lại
+(chi tiết và kiểm chứng bằng model giả trong `results.md`); tối 21/11
+chạy lại trên Kaggle (NB1 không chạy lại — code không đổi). PhoBERT
+6 epoch lên 88,5% / 15,6% / 87,4% (từ 83,4% / 6,7% / 81,8% ở 3 epoch).
+Tự build 20 epoch đạt argmax 93,2% / 34,2% / 93,0% (loss cuối 0,20;
+val tốt nhất 93,2%); chọn beta Viterbi trên val (0,5 → 94,4%; 1,0 →
+94,8%; 2,0 → 95,0%) rồi đo Viterbi beta 2,0 trên test: **95,0% /
+46,3% / 94,9%** — đạt mục tiêu 95%.
+
+Cùng tối đó, demo câu văn nói "noi len em oi" bị khôi phục sai thành
+"nói lên em ối" cho thấy model train trên Wikipedia không hiểu văn nói,
+nên đề án fine-tune thêm (Cell 10–12 của notebook 3): 150.000 câu phụ
+đề phim (`vietgpt/open_subtitles_envi`, làm sạch từ 200.000 câu mẫu)
+trộn 50.000 câu Wikipedia, 3 epoch, lr 1e-4; val phụ đề 87,5% → 88,6%
+→ 89,2%. Kết quả trên test phụ đề 3.000 câu: Viterbi **96,2%** (argmax
+88,3%), so với model chưa fine-tune là 94,1% / 73,8%; trên test
+Wikipedia, model fine-tune vẫn giữ 95,0% (Viterbi) — không bị quên
+miền văn viết. Câu "nói lên em ơi" nay khôi phục đúng; câu "hom nay
+troi dep qua" vẫn sai thành "trời đẹp quả" (phải là "quá") ở cả 2 cách
+giải mã — ví dụ hạn chế hiện tại (Mục 5.5).
 
 ---
 
@@ -242,7 +274,8 @@ chạy lại sẽ cho số mới, số 16/11 trong bảng này giữ làm baseli
 
 ### 5.1. Lỗi của hệ tốt nhất (Transformer tự build)
 
-Trên tập test, hệ tự build sai **17.918 / 239.189 từ**. Phân loại lỗi:
+Trên tập test, hệ tự build (bản 12 epoch, 16/11) sai **17.918 / 239.189
+từ**. Phân loại lỗi:
 
 | Loại lỗi | Số lượng | Tỉ lệ trên số lỗi |
 |---|---:|---:|
@@ -252,6 +285,9 @@ Trên tập test, hệ tự build sai **17.918 / 239.189 từ**. Phân loại l�
 
 Hai con số đầu cho thấy **lỗi tập trung ở việc phân biệt thanh điệu giữa
 các dạng của cùng một từ không dấu**, chứ không phải ở từ mới hay từ hiếm.
+Lưu ý: phân tích này là của bản 12 epoch (16/11); bản 20 epoch + Viterbi
+chỉ sai 11.896 từ, chưa phân tích lại chi tiết nên bảng trên không mô tả
+đúng phân bố lỗi của bản mới.
 
 ### 5.2. Các cặp nhầm lẫn phổ biến nhất
 
@@ -276,7 +312,9 @@ trong chính Wikipedia, không phải lỗi hiểu ngữ cảnh.
 ### 5.3. Ví dụ từ demo
 
 Demo Gradio (Mục 6) chạy thử 3 câu mẫu cho 20/27 từ đúng (~74%) — thấp hơn
-92,5% trên test vì các câu ví dụ dồn nhiều từ đa nghĩa:
+95,0% trên test (bản Viterbi) vì các câu ví dụ dồn nhiều từ đa nghĩa.
+3 ví dụ này của bản 12 epoch (16/11); demo Cell 13 dùng bản fine-tune
++ Viterbi:
 
 - `xin chao cac ban, toi ten la hao` → `xin chào các bản, tôi tên là hào`
   (lỗi duy nhất: `ban` → `bản`, đúng là `bạn`).
@@ -297,10 +335,12 @@ Nhận xét: mô hình có xu hướng chọn **nghĩa phổ biến hơn** trong
 quan sát trong quá trình huấn luyện (chưa được kiểm chứng bằng thử nghiệm
 đối chứng, và được ghi rõ là giả thuyết):
 
-1. **Thiếu huấn luyện.** PhoBERT chỉ train 3 epoch, loss cuối vẫn 1,95
-   (từ 12,31), trong khi tự build train 12 epoch, loss xuống 0,26.
-   Đầu phân loại 2.326 lớp với lr 2e-5 chưa học đủ — bằng chứng là công
-   thức candidate-index với đầu 21 lớp lại đạt cao hơn (85,2%).
+1. **Thiếu huấn luyện.** PhoBERT bản đầu chỉ train 3 epoch, loss cuối
+   vẫn 1,95 (từ 12,31), trong khi tự build train 20 epoch, loss xuống
+   0,20. Đầu phân loại 2.326 lớp với lr 2e-5 chưa học đủ — bằng chứng
+   là công thức candidate-index với đầu 21 lớp lại đạt cao hơn (85,2%)
+   ở 3 epoch. Chạy lại 6 epoch tối 21/11 (Mục 4.5) đưa PhoBERT lên
+   88,5%, xác nhận giả thuyết này — dù vẫn chưa vượt bigram.
 2. **Mức dự đoán.** PhoBERT dự đoán ở mức subword (nhãn gắn vào subword
    đầu tiên của từ), trong khi tự build dự đoán ở mức từ, không mất
    thông tin.
@@ -308,29 +348,36 @@ quan sát trong quá trình huấn luyện (chưa được kiểm chứng bằng
    encoder cùng nhau từ đầu với lr 1e-3; PhoBERT fine-tune một encoder
    đã pretrain với lr thấp, đầu phân loại mới thêm vào học chậm hơn.
 
-Hướng kiểm chứng trực tiếp: train PhoBERT thêm epoch (5–10) và/hoặc tăng
-lr riêng cho đầu phân loại, rồi đo lại.
+Hướng kiểm chứng trực tiếp đã thực hiện: train PhoBERT 6 epoch (Mục 4.5),
+lên 88,5% — xác nhận thiếu huấn luyện là nguyên nhân chính. Việc còn
+lại: tăng lr riêng cho đầu phân loại, rồi đo lại.
 
 ### 5.5. Hạn chế
 
 - Mô hình không xử lý **viết hoa** (chỉ khôi phục dấu).
 - Từ nước ngoài mang dấu ngoài tiếng Việt (0,029%) không mã hóa được.
-- Chỉ đo trên văn bản Wikipedia; chưa đo trên miền khác (báo chí, văn
-  nói, teencode), nơi tỉ lệ lỗi có thể cao hơn.
-- Mục tiêu 95% word accuracy chưa đạt được (Mục 4.2).
+- Đã đo thêm trên phụ đề phim sau fine-tune (96,2%); chưa đo trên báo
+  chí, teencode.
+- Word accuracy không đo được **ngữ nghĩa**: một câu khôi phục sai
+  nghĩa vẫn có thể đúng phần lớn từ — vd "trời đẹp quả" thay vì "trời
+  đẹp quá" vẫn sai sau fine-tune (Mục 4.5).
+- Mục tiêu 95% word accuracy đã đạt được (Mục 4.2).
 
 ---
 
 ## 6. Demo
 
 Demo Gradio chạy trên checkpoint tốt nhất của hệ tự build, đặt trong
-Cell 9 của notebook Transformer tự build:
+Cell 9 của notebook Transformer tự build (đã cập nhật tối 21/11 sang
+giải mã Viterbi beta 2,0 để cho kết quả đúng nhất):
 
 - Link public: https://5c5532dd203ae07dc6.gradio.live
   (link tạm của Gradio, tồn tại tối đa 1 tuần và chỉ sống khi phiên
   Kaggle còn chạy; chạy lại Cell 9 để có link mới).
 - Cách dùng: nhập câu không dấu, bấm Submit, nhận câu đã khôi phục dấu
   trong khoảng 1 giây/câu. Demo có sẵn 3 câu ví dụ.
+- Cell 13 là demo thứ hai, dùng model fine-tune trên phụ đề + Viterbi,
+  hiểu được câu văn nói (vd "noi len em oi" → "nói lên em ơi").
 
 ---
 
@@ -338,15 +385,15 @@ Cell 9 của notebook Transformer tự build:
 
 Đề án đã xây dựng và so sánh công bằng 4 hệ thống khôi phục dấu tiếng
 Việt trên cùng một tập test 10.000 câu Wikipedia. Kết quả chính: **Transformer
-tự build đạt word accuracy 92,5%, tốt nhất trong 4 hệ**, vượt bigram
-(91,9%) và PhoBERT fine-tune (83,4%). Phân tích lỗi cho thấy hơn một nửa
-số lỗi chỉ sai ở thanh điệu, và gần 9/10 lỗi rơi vào từ đa nghĩa — đó là
-hướng cải thiện rõ ràng nhất.
+tự build + Viterbi đạt word accuracy 95,0%, tốt nhất trong 4 hệ**, vượt
+bigram (91,9%) và PhoBERT fine-tune (88,5%), đạt mục tiêu tham khảo 95%.
+Phân tích lỗi cho thấy hơn một nửa số lỗi chỉ sai ở thanh điệu, và gần
+9/10 lỗi rơi vào từ đa nghĩa — đó là hướng cải thiện rõ ràng nhất.
 
 Hướng phát triển:
 
-- Train PhoBERT nhiều epoch hơn và tăng learning rate cho đầu phân loại
-  để kiểm chứng giả thuyết ở Mục 5.4.
+- Tăng learning rate riêng cho đầu phân loại PhoBERT để kiểm chứng nốt
+  giả thuyết ở Mục 5.4 (thêm epoch đã kiểm chứng, lên 88,5%).
 - Mở rộng corpus lên 500.000 câu (mức cao của kế hoạch ban đầu).
 - Thử mô hình seq2seq (mT5/T5) — các công trình công bố đạt 97–98% word
   accuracy trên bài toán này (T5 đạt 97,81% trong benchmark nom-vn;
@@ -383,7 +430,7 @@ Toàn bộ comment trong code bằng tiếng Việt.
 
 | Notebook | Nội dung | Link |
 |---|---|---|
-| Vietnamese Diacritic Restoration - Week 1 Starter | Dữ liệu + baseline từ điển + bigram (Version 5) | https://www.kaggle.com/code/lcaoho/vietnamese-diacritic-restoration-week-1-starter |
+| VN Diacritic Restoration - Data and Baselines | Dữ liệu + baseline từ điển + bigram (Version 5) | https://www.kaggle.com/code/lcaoho/vn-diacritic-restoration-data-and-baselines |
 | Vietnamese Diacritic Restoration - PhoBERT | PhoBERT fine-tune, công thức mẫu dấu (Version 3) | https://www.kaggle.com/code/lcaoho/vietnamese-diacritic-restoration-phobert |
 | VN Diacritic Restoration - Self-built Transformer | Transformer tự build + so sánh + phân tích lỗi + demo Gradio (Version 3) | https://www.kaggle.com/code/lcaoho/vn-diacritic-restoration-self-built-transformer |
 
@@ -391,4 +438,6 @@ Số kiểm chứng khi chạy lại: 1.501 bài viết, 100.000 câu, 2.387.449
 5.461 từ đa nghĩa (train), 2.326 nhãn mẫu dấu. Lưu ý: các commit Version
 trên Kaggle có thể còn ở trạng thái Queued do hàng đợi GPU; số liệu trong
 báo cáo này lấy từ các lần chạy tương tác đã xác minh, và mọi notebook đều
-lưu lại đầy đủ output của lần chạy đó.
+lưu lại đầy đủ output của lần chạy đó. Số liệu chính (Bảng 4.1) lấy từ
+lần chạy lại tương tác tối 21/11 sau tinh chỉnh 18/11 (Mục 4.5); số 16/11
+giữ làm baseline trong `results.md`.

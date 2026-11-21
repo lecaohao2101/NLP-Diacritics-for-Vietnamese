@@ -13,14 +13,21 @@ Bốn hệ thống so sánh trên cùng tập test 10.000 câu Wikipedia
 |---|---:|---:|---:|
 | Từ điển | 77,4% | 2,6% | 74,6% |
 | Bigram + Viterbi | 91,9% | 30,8% | 91,3% |
-| PhoBERT fine-tune | 83,4% | 6,7% | 81,8% |
-| **Transformer tự build** | **92,5%** | **30,8%** | **92,4%** |
+| PhoBERT fine-tune | 88,5% | 15,6% | 87,4% |
+| Transformer tự build (argmax) | 93,2% | 34,2% | 93,0% |
+| **Transformer tự build + Viterbi** | **95,0%** | **46,3%** | **94,9%** |
 
 Kết quả bất ngờ: Transformer tự build (encoder 4 lớp, 9,5M tham số,
-train 12 epoch) tốt nhất, vượt cả PhoBERT fine-tune (chỉ train 3 epoch,
-loss còn 1,95, đầu phân loại 2.326 lớp chưa học đủ). Phân tích lỗi: 55,1%
-số lỗi chỉ sai thanh điệu, 88,6% rơi vào từ đa nghĩa. Chi tiết đầy đủ
-trong [`reports/bao-cao-khoi-phuc-dau-tieng-viet.md`](reports/bao-cao-khoi-phuc-dau-tieng-viet.md).
+train 20 epoch) tốt nhất, vượt cả PhoBERT fine-tune (6 epoch, 88,5%).
+Giải mã Viterbi + bigram (beta 2,0, chọn trên validation) cộng thêm
++1,8 điểm word và +12,1 điểm sentence so với argmax, đưa hệ tốt nhất
+lên **95,0% — đạt mục tiêu tham khảo 95%**. Fine-tune thêm 3 epoch
+trên 150.000 câu phụ đề phim (trộn 50.000 câu Wikipedia) đạt 96,2%
+trên test phụ đề mà vẫn giữ 95,0% trên test Wikipedia. Phân tích lỗi:
+55,1% số lỗi chỉ sai thanh điệu, 88,6% rơi vào từ đa nghĩa (phân tích
+của bản 12 epoch 16/11; bản Viterbi chỉ sai 11.896 từ, chưa phân tích
+lại chi tiết). Chi tiết đầy đủ trong
+[`reports/bao-cao-khoi-phuc-dau-tieng-viet.md`](reports/bao-cao-khoi-phuc-dau-tieng-viet.md).
 
 ## Dữ liệu
 
@@ -37,8 +44,9 @@ vị trí mang dấu (ví dụ `được` → `("đ", "ư", "ợ")`), 2.326 nhã
 |---|---|
 | `notebooks/01-data-and-baselines.ipynb` | Dữ liệu + baseline từ điển + bigram (Kaggle Notebook 1) |
 | `notebooks/02-phobert-finetuning.ipynb` | PhoBERT fine-tune, công thức mẫu dấu (Kaggle Notebook 2) |
-| `notebooks/03-self-built-transformer.ipynb` | Transformer tự build + so sánh + phân tích lỗi + demo Gradio (Kaggle Notebook 3) |
-| `reports/bao-cao-khoi-phuc-dau-tieng-viet.md` | Báo cáo đầy đủ (tiếng Việt, 9 trang) |
+| `notebooks/03-self-built-transformer.ipynb` | Transformer tự build + so sánh + phân tích lỗi + demo Gradio + fine-tune văn nói (Kaggle Notebook 3, 14 cell) |
+| `scripts/restore_document.py` | Khôi phục dấu cho cả file tài liệu (.txt/.docx/.pdf) bằng checkpoint đã train — mặc định Viterbi beta 2,0 |
+| `reports/bao-cao-khoi-phuc-dau-tieng-viet.md` | Báo cáo đầy đủ (tiếng Việt, 10 trang) |
 | `PLAN.md` | Kế hoạch đề án |
 | `STEP_BY_STEP.md` | Các bước thực hiện chi tiết |
 | `results.md` | Nhật ký kết quả từng chặng (số liệu đo thực tế) |
@@ -51,7 +59,7 @@ vị trí mang dấu (ví dụ `được` → `("đ", "ư", "ợ")`), 2.326 nhã
 Các notebook chạy trên Kaggle (GPU T4 x2, Internet ON), toàn bộ comment
 trong code bằng tiếng Việt:
 
-- Notebook 1 — dữ liệu + baseline: https://www.kaggle.com/code/lcaoho/vietnamese-diacritic-restoration-week-1-starter
+- Notebook 1 — dữ liệu + baseline: https://www.kaggle.com/code/lcaoho/vn-diacritic-restoration-data-and-baselines
 - Notebook 2 — PhoBERT: https://www.kaggle.com/code/lcaoho/vietnamese-diacritic-restoration-phobert
 - Notebook 3 — Transformer tự build: https://www.kaggle.com/code/lcaoho/vn-diacritic-restoration-self-built-transformer
 
@@ -70,23 +78,25 @@ Cell 8 — không có file thì bảng vẫn chạy nhưng hàng PhoBERT là s�
 ## Demo
 
 Demo Gradio chạy trên checkpoint tốt nhất của hệ tự build (Cell 9 của
-notebook 3): nhập câu không dấu, nhận câu có dấu trong ~1 giây. Link
-public Gradio chỉ sống khi phiên Kaggle còn chạy; chạy lại Cell 9 để có
-link mới.
+notebook 3, đã chuyển sang giải mã Viterbi beta 2,0 để cho kết quả đúng
+nhất): nhập câu không dấu, nhận câu có dấu trong ~1 giây. Cell 13 là
+demo dùng model fine-tune trên phụ đề + Viterbi, hiểu được câu văn nói
+(vd "noi len em oi" → "nói lên em ơi"). Link public Gradio chỉ sống khi
+phiên Kaggle còn chạy; chạy lại Cell 9 hoặc Cell 13 để có link mới.
 
 ## Lưu ý
 
 - Ngày 17/11 code đã qua một vòng review và sửa lỗi (seed cho train,
   assert khớp dữ liệu, masking mẫu tương thích khi dự đoán, PhoBERT
   chọn checkpoint tốt nhất theo val — chi tiết trong `results.md`).
-  Số liệu trong báo cáo đo ngày 16/11, trước các sửa đổi này; chạy
-  lại code đã sửa có thể cho số lệch nhẹ.
-- Ngày 18/11 tinh chỉnh thêm trước khi chạy lại (chi tiết trong
-  `results.md`): PhoBERT 6 epoch thay cho 3 (loss còn 1,95, chưa hội
-  tụ), tự build 20 epoch thay cho 12, và giải mã Viterbi + bigram cho
-  hệ tự build (beta chọn trên val, chỉ giữ nếu val cải thiện).
-- File PDF của báo cáo và file PowerPoint 12 trang không nằm trong repo
-  này (GitHub push qua công cụ chỉ nhận file text UTF-8); bản PDF và
-  slide nằm cùng thư mục làm việc của đề án.
-- Mục tiêu tham khảo 95% word accuracy chưa đạt được (tốt nhất 92,5%).
-  Các công trình công bố đạt khoảng 97–98% với corpus và mô hình lớn hơn.
+- Ngày 18/11 tinh chỉnh thêm (chi tiết trong `results.md`): PhoBERT
+  6 epoch thay cho 3, tự build 20 epoch thay cho 12, và giải mã
+  Viterbi + bigram cho hệ tự build (beta chọn trên val, chỉ giữ nếu
+  val cải thiện). Đã chạy lại tối 21/11: PhoBERT 88,5%, tự build
+  argmax 93,2%, Viterbi 95,0% — xem `results.md` mục cuối.
+- File PDF của báo cáo và file PowerPoint không nằm trong repo này
+  (GitHub push qua công cụ chỉ nhận file text UTF-8); bản PDF và slide
+  nằm cùng thư mục làm việc của đề án.
+- Mục tiêu tham khảo 95% word accuracy **đã đạt được** (95,0% nhờ
+  Viterbi). Các công trình công bố đạt khoảng 97–98% với corpus và mô
+  hình lớn hơn.
