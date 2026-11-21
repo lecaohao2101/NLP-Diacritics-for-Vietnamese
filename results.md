@@ -410,3 +410,40 @@ Chưa sửa (cần chạy lại trên Kaggle, ngoài phạm vi đợt này):
 - Báo cáo §3.5 ghi chú rõ số val 91,1% đo theo cách cũ; README thêm
   checklist chạy lại trên Kaggle (thứ tự, GPU, thời gian, file
   PhoBERT cần chuyển sang Notebook 3).
+
+## Tinh chỉnh 18/11 (chưa chạy trên Kaggle — cần chạy lại để lấy số mới)
+
+Sau khi code đã review xong, câu hỏi đặt ra là tinh chỉnh gì thêm
+trước khi chạy lại trên Kaggle. Áp dụng cả 3 thay đổi sau (số 16/11
+giữ làm baseline để so sánh):
+
+- Notebook 2, Cell 4: PhoBERT 6 epoch thay cho 3, warmup 750 -> 1500
+  bước (≈ 10% tổng 15.000 bước). Đây là cải thiện kỳ vọng lớn nhất:
+  PhoBERT pretrain 20GB nhưng sau 3 epoch loss còn 1,95 (chưa hội tụ);
+  kỳ vọng từ 83,4% lên cao 80s, có thể chạm 90%+. Chi phí ~70 phút
+  GPU thay cho ~36 phút.
+- Notebook 3, Cell 4: tự build 20 epoch thay cho 12 (loss còn giảm,
+  val còn tăng ở epoch 12). Kỳ vọng +0,1–0,5 điểm %. Chi phí ~25 phút
+  thay cho ~15 phút.
+- Notebook 3, Cell 3 + Cell 5: giải mã Viterbi + bigram cho hệ tự
+  build. Argmax hiện tại đoán từng từ độc lập; Viterbi chọn chuỗi tốt
+  nhất theo cả điểm model (log-softmax logit của mẫu dấu) và tần suất
+  cụm từ (bigram đếm trên train, làm mịn alpha 0,1 — dùng lại ở Cell 7
+  thay vì đếm lại). Hệ số beta thử {0,5; 1,0; 2,0} trên VAL trước, chỉ
+  giữ beta tốt nhất; nếu val không cải thiện thì giữ argmax làm số
+  chính (Cell 5 in cảnh báo rõ). Dự đoán Viterbi lưu riêng vào
+  `selfbuilt_viterbi_test_predictions.csv`. Nếu Viterbi thắng trên
+  val, file dự đoán chính `selfbuilt_test_predictions.csv` được ghi
+  đè bằng dự đoán Viterbi (bản argmax giữ riêng ở
+  `selfbuilt_argmax_test_predictions.csv`) để phân tích lỗi (Cell 6)
+  và bảng so sánh (Cell 8) dùng số của cách giải mã tốt nhất — lựa
+  chọn dựa trên val, không chọn trên test. Kỳ vọng +0,3–1 điểm %,
+  không chắc thắng — đo rồi mới giữ.
+
+Đã kiểm chứng trước khi chạy (không có torch ở máy này nên kiểm chứng
+bằng model giả): toàn bộ cell biên dịch được; logic Viterbi khớp thuật
+toán brute-force liệt kê mọi tổ hợp ở beta 0 / 0,5 / 1,0 / 2,0; beta 0
+trả đúng kết quả argmax; beta 1 lật được lỗi thật trong báo cáo
+("tới dạng" -> "tôi đang"); câu rỗng và từ chưa thấy trong train đều
+xử lý đúng (giữ nguyên từ). Tổng thời gian chạy lại mới: ~1 tiếng
+45 phút.

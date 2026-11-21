@@ -60,8 +60,9 @@ Số kiểm chứng khi chạy lại: 1.501 bài viết, 100.000 câu, 2.387.449
 
 Thứ tự chạy: Notebook 1 → 2 → 3, mỗi lần một notebook (Kaggle chỉ cho
 1 phiên GPU tương tác). Notebook 1 chạy CPU cũng được; Notebook 2 và 3
-cần GPU T4 x2 + Internet ON. Tổng thời gian khoảng 1 tiếng (PhoBERT
-~40 phút, tự build ~15 phút). Để bảng so sánh ở Notebook 3 dùng toàn
+cần GPU T4 x2 + Internet ON. Tổng thời gian khoảng 1 tiếng 45 phút
+(PhoBERT ~70 phút với 6 epoch, tự build ~25 phút với 20 epoch + vài
+phút chọn beta Viterbi ở Cell 5). Để bảng so sánh ở Notebook 3 dùng toàn
 số mới, tải file `phobert_predictions.csv` từ Output của Notebook 2
 rồi upload vào Notebook 3 (hoặc đưa vào Kaggle Dataset) trước khi chạy
 Cell 8 — không có file thì bảng vẫn chạy nhưng hàng PhoBERT là số cũ.
@@ -80,6 +81,10 @@ link mới.
   chọn checkpoint tốt nhất theo val — chi tiết trong `results.md`).
   Số liệu trong báo cáo đo ngày 16/11, trước các sửa đổi này; chạy
   lại code đã sửa có thể cho số lệch nhẹ.
+- Ngày 18/11 tinh chỉnh thêm trước khi chạy lại (chi tiết trong
+  `results.md`): PhoBERT 6 epoch thay cho 3 (loss còn 1,95, chưa hội
+  tụ), tự build 20 epoch thay cho 12, và giải mã Viterbi + bigram cho
+  hệ tự build (beta chọn trên val, chỉ giữ nếu val cải thiện).
 - File PDF của báo cáo và file PowerPoint 12 trang không nằm trong repo
   này (GitHub push qua công cụ chỉ nhận file text UTF-8); bản PDF và
   slide nằm cùng thư mục làm việc của đề án.

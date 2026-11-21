@@ -230,7 +230,11 @@ liệu đã sửa sang định nghĩa train-only (xem `results.md`) nên chạy 
 sẽ cho thẳng số của Bảng 4.1; số gốc 74,7% / 91,2% chỉ còn giá trị lịch
 sử. Tương tự, code đánh giá của hệ tự build đã thêm masking mẫu tương
 thích (17/11) nên chạy lại có thể cho số cao hơn 92,5% một chút — số
-trong bảng này đo bằng argmax trần ngày 16/11.
+trong bảng này đo bằng argmax trần ngày 16/11. Ngày 18/11 code tinh
+chỉnh thêm trước khi chạy lại (xem `results.md`): PhoBERT 6 epoch thay
+cho 3, tự build 20 epoch thay cho 12, và giải mã Viterbi + bigram cho
+hệ tự build (hệ số beta chọn trên val, chỉ giữ nếu val cải thiện) —
+chạy lại sẽ cho số mới, số 16/11 trong bảng này giữ làm baseline.
 
 ---
 
